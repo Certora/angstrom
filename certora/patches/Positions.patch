@@ -1,0 +1,24 @@
+diff --git a/contracts/src/types/Positions.sol b/contracts/src/types/Positions.sol
+index 01f4b6ab..7c24b127 100644
+--- a/contracts/src/types/Positions.sol
++++ b/contracts/src/types/Positions.sol
+@@ -23,18 +23,7 @@ library PositionsLib {
+         int24 upperTick,
+         bytes32 salt
+     ) internal view returns (Position storage position, bytes32 positionKey) {
+-        assembly ("memory-safe") {
+-            // Compute `positionKey` as `keccak256(abi.encodePacked(owner, lowerTick, upperTick, salt))`.
+-            // Less efficient than alternative ordering *but* lets us reuse as Uniswap position key.
+-            mstore(0x06, upperTick)
+-            mstore(0x03, lowerTick)
+-            mstore(0x00, owner)
+-            // WARN: Free memory pointer temporarily invalid from here on.
+-            mstore(0x26, salt)
+-            positionKey := keccak256(12, add(add(3, 3), add(20, 32)))
+-            // Upper bytes of free memory pointer cleared.
+-            mstore(0x26, 0)
+-        }
++        positionKey = keccak256(abi.encodePacked(owner, lowerTick, upperTick, salt));
+         position = self.positions[id][positionKey];
+     }
+ }

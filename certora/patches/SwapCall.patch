@@ -1,0 +1,38 @@
+diff --git a/contracts/src/types/SwapCall.sol b/contracts/src/types/SwapCall.sol
+index 1778f544..70e92726 100644
+--- a/contracts/src/types/SwapCall.sol
++++ b/contracts/src/types/SwapCall.sol
+@@ -52,10 +52,23 @@ library SwapCallLib {
+         self.sqrtPriceLimitX96 = zeroForOne ? MIN_SQRT_RATIO : MAX_SQRT_RATIO;
+     }
+ 
++    // function getId(SwapCall memory self) internal pure returns (PoolId id) {
++    //     assembly ("memory-safe") {
++    //         id := keccak256(add(self, POOL_KEY_OFFSET), POOL_KEY_SIZE)
++    //     }
++    // }
+     function getId(SwapCall memory self) internal pure returns (PoolId id) {
+-        assembly ("memory-safe") {
+-            id := keccak256(add(self, POOL_KEY_OFFSET), POOL_KEY_SIZE)
+-        }
++        return PoolId.wrap(
++            keccak256(
++                abi.encode(
++                    self.asset0,
++                    self.asset1,
++                    self.fee,
++                    self.tickSpacing,
++                    self.hook
++                )
++            )
++        );
+     }
+ 
+     function call(SwapCall memory self, IPoolManager uni) internal {
+@@ -69,4 +82,4 @@ library SwapCallLib {
+             }
+         }
+     }
+-}
++}
+\ No newline at end of file

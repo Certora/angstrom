@@ -1,0 +1,15 @@
+diff --git a/contracts/src/interfaces/IAngstromAuth.sol b/contracts/src/interfaces/IAngstromAuth.sol
+index c340ac22..7494365b 100644
+--- a/contracts/src/interfaces/IAngstromAuth.sol
++++ b/contracts/src/interfaces/IAngstromAuth.sol
+@@ -20,8 +20,8 @@ interface IAngstromAuth {
+         uint24 bundleFee,
+         uint24 unlockedFee
+     ) external;
+-    function removePool(StoreKey key, PoolConfigStore expectedStore, uint256 storeIndex) external;
+-    function batchUpdatePools(PoolConfigStore expected_store, ConfigEntryUpdate[] calldata updates)
++    function removePool(StoreKey key) external;
++    function batchUpdatePools(ConfigEntryUpdate[] calldata updates)
+         external;
+     function pullFee(address asset, uint256 amount) external;
+     function toggleNodes(address[] calldata nodes) external;

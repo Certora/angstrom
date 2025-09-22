@@ -1,0 +1,23 @@
+diff --git a/contracts/src/types/Pair.sol b/contracts/src/types/Pair.sol
+index e4355f97..d0eb30b5 100644
+--- a/contracts/src/types/Pair.sol
++++ b/contracts/src/types/Pair.sol
+@@ -4,8 +4,7 @@ pragma solidity ^0.8.13;
+ import {CalldataReader} from "./CalldataReader.sol";
+ import {AssetArray} from "./Asset.sol";
+ import {RayMathLib} from "../libraries/RayMathLib.sol";
+-import {PoolConfigStore, StoreKey} from "../libraries/PoolConfigStore.sol";
+-import {ONE_E6} from "./ConfigEntry.sol";
++import {PoolConfigStore, ONE_E6, StoreKey} from "../libraries/PoolConfigStore.sol";
+ import {StoreKey, HASH_TO_STORE_KEY_SHIFT} from "../types/StoreKey.sol";
+ 
+ type Pair is uint256;
+@@ -97,7 +96,7 @@ library PairLib {
+ 
+                 uint16 storeIndex;
+                 (reader, storeIndex) = reader.readU16();
+-                (int24 tickSpacing, uint24 feeInE6) = store.get(key, storeIndex);
++                (int24 tickSpacing, uint24 feeInE6) = store.get(key);
+ 
+                 assembly ("memory-safe") {
+                     mstore(add(raw_memoryOffset, PAIR_TICK_SPACING_OFFSET), tickSpacing)

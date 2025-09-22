@@ -1,0 +1,26 @@
+diff --git a/contracts/src/modules/PoolUpdates.sol b/contracts/src/modules/PoolUpdates.sol
+index 1f3da9db..9395bd64 100644
+--- a/contracts/src/modules/PoolUpdates.sol
++++ b/contracts/src/modules/PoolUpdates.sol
+@@ -216,10 +216,15 @@ abstract contract PoolUpdates is
+     }
+ 
+     function _toId(PoolKey calldata poolKey) internal pure returns (PoolId id) {
+-        assembly ("memory-safe") {
+-            let ptr := mload(0x40)
+-            calldatacopy(ptr, poolKey, mul(32, 5))
+-            id := keccak256(ptr, mul(32, 5))
+-        }
+-    }
++    bytes32 hash = keccak256(
++        abi.encode(
++            poolKey.currency0,
++            poolKey.currency1,
++            poolKey.fee,
++            poolKey.tickSpacing,
++            poolKey.hooks
++        )
++    );
++    id = PoolId.wrap(hash);
++}
+ }

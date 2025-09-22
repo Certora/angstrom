@@ -1,0 +1,25 @@
+diff --git a/contracts/src/types/StoreKey.sol b/contracts/src/types/StoreKey.sol
+index 03925765..06e57338 100644
+--- a/contracts/src/types/StoreKey.sol
++++ b/contracts/src/types/StoreKey.sol
+@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
+ /// @dev Left shift in bits to convert the full hash `keccak256(abi.encode(asset0, asset1))` to a store key.
+ uint256 constant HASH_TO_STORE_KEY_SHIFT = 40;
+ 
+-type StoreKey is bytes27;
++type StoreKey is bytes32;
+ 
+ using StoreKeyLib for StoreKey global;
+ using {StoreKey_eq as ==, StoreKey_neq as !=} for StoreKey global;
+@@ -26,10 +26,6 @@ library StoreKeyLib {
+         pure
+         returns (StoreKey key)
+     {
+-        assembly ("memory-safe") {
+-            mstore(0x00, asset0)
+-            mstore(0x20, asset1)
+-            key := shl(HASH_TO_STORE_KEY_SHIFT, keccak256(0x00, 0x40))
+-        }
++        return StoreKey.wrap(keccak256(abi.encode(asset0, asset1)));
+     }
+ }

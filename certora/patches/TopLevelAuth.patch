@@ -1,0 +1,122 @@
+diff --git a/contracts/src/modules/TopLevelAuth.sol b/contracts/src/modules/TopLevelAuth.sol
+index b2e329f7..52d7ec57 100644
+--- a/contracts/src/modules/TopLevelAuth.sol
++++ b/contracts/src/modules/TopLevelAuth.sol
+@@ -4,11 +4,9 @@ pragma solidity ^0.8.26;
+ import {IAngstromAuth, ConfigEntryUpdate} from "../interfaces/IAngstromAuth.sol";
+ import {UniConsumer} from "./UniConsumer.sol";
+ import {EIP712} from "solady/src/utils/EIP712.sol";
+-
+-import {PoolConfigStore, PoolConfigStoreLib} from "../libraries/PoolConfigStore.sol";
++import {PoolConfigStore} from "../libraries/PoolConfigStore.sol";
+ import {StoreKey, StoreKeyLib} from "../types/StoreKey.sol";
+-import {ConfigEntry, ConfigEntryLib} from "../types/ConfigEntry.sol";
+-import {ConfigBuffer} from "../types/ConfigBuffer.sol";
++import {TickMath} from "v4-core/src/libraries/TickMath.sol";
+ import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
+ import {PoolKey} from "v4-core/src/types/PoolKey.sol";
+ import {SafeCastLib} from "solady/src/utils/SafeCastLib.sol";
+@@ -33,6 +31,9 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
+     error InvalidSignature();
+     error UnlockFeeAboveMax();
+ 
++    error InvalidTickSpacing();
++    error FeeAboveMax();
++
+     /// @dev `keccak256("AttestAngstromBlockEmpty(uint64 block_number)")`
+     uint256 internal constant ATTEST_EMPTY_BLOCK_TYPE_HASH =
+         0x3f25e551746414ff93f076a7dd83828ff53735b39366c74015637e004fcb0223;
+@@ -48,7 +49,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
+     mapping(StoreKey => uint256) private _unlockedFeePackedSet;
+ 
+     uint64 internal _lastBlockUpdated;
+-    PoolConfigStore internal _configStore;
++    PoolConfigStore internal _configStore; // Not needed anymore but for Angstrom
+ 
+     constructor(address controller) {
+         _controller = controller;
+@@ -74,26 +75,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
+ 
+         StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1);
+ 
+-        ConfigBuffer memory buffer = _configStore.read_to_buffer(1);
+-        uint256 i = 0;
+-        uint256 entry_count = buffer.entries.length;
+-
+-        // Search existing entries and modify the respective entry if found.
+-        for (; i < entry_count; i++) {
+-            ConfigEntry entry = buffer.entries[i];
+-            if (entry.key() == key) {
+-                buffer.entries[i] =
+-                    buffer.entries[i].setTickSpacing(tickSpacing).setBundleFee(bundleFee);
+-                break;
+-            }
+-        }
+-        // If not found push new entry.
+-        if (i == entry_count) {
+-            // Safety: Know that `key` is unique because every other key was checked.
+-            buffer.unsafe_add(ConfigEntryLib.init(key, tickSpacing, bundleFee));
+-        }
+-
+-        _configStore = PoolConfigStoreLib.store_from_buffer(buffer);
++        _configStore.insertNewConfig(key, tickSpacing, bundleFee);
+ 
+         unlockedFee.validate();
+         _setUnlockedFee(key, unlockedFee);
+@@ -102,51 +84,36 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
+     function initializePool(
+         address assetA,
+         address assetB,
+-        uint256 storeIndex,
+         uint160 sqrtPriceX96
+     ) public {
+         if (assetA > assetB) (assetA, assetB) = (assetB, assetA);
+         StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(assetA, assetB);
+-        (int24 tickSpacing,) = _configStore.get(key, storeIndex);
++        (int24 tickSpacing, ) = _configStore.get(key);
+         UNI_V4.initialize(
+             PoolKey(_c(assetA), _c(assetB), INIT_HOOK_FEE, tickSpacing, IHooks(address(this))),
+             sqrtPriceX96
+         );
+     }
+ 
+-    function removePool(StoreKey key, PoolConfigStore expected_store, uint256 store_index)
++    function removePool(StoreKey key)
+         external
+     {
+         _onlyController();
+ 
+-        PoolConfigStore store = _configStore;
+-        if (store != expected_store) revert IndexMayHaveChanged();
+-
+-        ConfigBuffer memory buffer = _configStore.read_to_buffer();
+-        buffer.remove_entry(key, store_index);
+-        _configStore = PoolConfigStoreLib.store_from_buffer(buffer);
+-
++        _configStore.deleteConfig(key);
+         _unsetUnlockedFee(key);
+     }
+ 
+-    function batchUpdatePools(PoolConfigStore expected_store, ConfigEntryUpdate[] calldata updates)
++    function batchUpdatePools(ConfigEntryUpdate[] calldata updates)
+         external
+     {
+         _onlyController();
+ 
+-        PoolConfigStore store = _configStore;
+-        if (store != expected_store) revert IndexMayHaveChanged();
+-
+-        ConfigBuffer memory buffer = _configStore.read_to_buffer(0);
+-
+         for (uint256 i = 0; i < updates.length; i++) {
+             ConfigEntryUpdate calldata update = updates[i];
+-            buffer.entries[update.index] =
+-                buffer.get(update.key, update.index).setBundleFee(update.bundleFee);
++            _configStore.updateFee(update.key, update.bundleFee);
+             _setUnlockedFee(update.key, update.unlockedFee);
+         }
+-
+-        _configStore = PoolConfigStoreLib.store_from_buffer(buffer);
+     }
+ 
+     /// @dev Function to allow controller to pull an arbitrary amount of tokens from the contract.
